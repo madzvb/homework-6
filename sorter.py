@@ -162,7 +162,7 @@ def make_move_file_function(destination_root: Path):
 
         if args.overwrite or not destination.exists():
             if args.verbose >= 3:
-                print(f"Move file - '{name}' to '{destination}'")
+                print(f"Move file - '{name}' to '{destination}'.")
             try:
                 shutil.move(name, destination)
             except Exception as e:
@@ -192,7 +192,7 @@ def make_unpack_file_function(destination_root: Path):
         
         if not destination.exists():
             if args.verbose >= 3:
-                print(f"Create directory - '{destination}'")
+                print(f"Create directory - '{destination}'.")
             try:
                 destination.mkdir()
             except Exception as e:
@@ -201,7 +201,7 @@ def make_unpack_file_function(destination_root: Path):
         if args.overwrite or not os.listdir(destination):
             try:
                 if args.verbose >= 3:
-                    print(f"Unpack archive - '{name}' to '{destination}'")
+                    print(f"Unpack archive - '{name}' to '{destination}'.")
                 shutil.unpack_archive(name, destination)
             except shutil.ReadError as e:
                 print(f"Error: {e}")
@@ -233,7 +233,7 @@ def make_delete_file_function(destination_root: Path):
         
         if destination.exists():  # Check if archive was unpacked
             if args.verbose >= 3:
-                print(f"Remove file - '{name}'")
+                print(f"Remove file - '{name}'.")
             try:
                 name.unlink(True)
             except Exception as e:
@@ -249,7 +249,7 @@ def remove_file(name: Path) -> Path:
 
     if name.exists():
         if args.verbose >= 3:
-            print(f"Remove file - '{name}'")
+            print(f"Remove file - '{name}'.")
         try:
             name.unlink(True)
         except Exception as e:
@@ -281,11 +281,11 @@ def sort(current_dir: Path, dir2ext: dict, ext2dir: dict, result: dict) -> dict:
     if dirs:
         for folder in dirs:
             if args.verbose > 0:
-                print(f"Processing directory - {folder}")
+                print(f"Processing directory - '{folder}'.")
             result = sort(folder, dir2ext, ext2dir, result)
             if not args.keep_empty_dir and folder.exists() and not len(os.listdir(folder)):
                 if args.verbose >= 3:
-                    print(f"Remove empty directory - {folder}")
+                    print(f"Remove empty directory - '{folder}'.")
                 try:
                     folder.rmdir()
                 except Exception as e:
@@ -326,13 +326,13 @@ def sort(current_dir: Path, dir2ext: dict, ext2dir: dict, result: dict) -> dict:
                 dir_name = Path(target_directory) / dest
                 if not dir_name.exists(): # Create destination directory if no exists
                     if args.verbose >= 2:
-                        print(f"Create directory - {dir_name}")
+                        print(f"Create directory - '{dir_name}'.")
                     dir_name.mkdir()
                 for function in functions: # Apply functions to files
                     for name in map(function, files):
                         continue
             else:
-                print(f"Error: skip processing {files}. No functions to apply.")
+                print(f"Error: skip processing '{files}'. No functions to apply.")
     return result
 
 if __name__ == '__main__':
@@ -378,7 +378,7 @@ if __name__ == '__main__':
     group = parser.add_mutually_exclusive_group()
     group.add_argument(
         "-s", "--settings",
-        help="Specify path to settings(JSON) file",
+        help="Specify path to settings(JSON) file.",
         type = Path,
         metavar="settings.json",
         default="settings.json",
@@ -386,7 +386,7 @@ if __name__ == '__main__':
     )
     group.add_argument(
         "-d", "--destination",
-        help="Destination directory",
+        help="Destination directory.",
         type = Path,
         metavar="destination",
         action="store",
@@ -395,7 +395,7 @@ if __name__ == '__main__':
     )
     parser.add_argument(
         "-e", "--extensions",
-        help="File's extensions",
+        help="File's extensions.",
         metavar="extensions",
         action="store",
         default="*",
@@ -404,7 +404,7 @@ if __name__ == '__main__':
     )
     parser.add_argument(
         "-f", "--functions",
-        help="Function's list(order sensitive)",
+        help="Function's list(order sensitive).",
         metavar="functions",
         action="store",
         default="move",
@@ -501,7 +501,7 @@ if __name__ == '__main__':
                                 if function_name in globals():
                                     functions.append(globals()[function_name])
                                 else:
-                                    print(f"Error: {function} not found.")
+                                    print(f"Error: '{function}' not found.")
                     extensions['functions'] = functions
 
             result = {}
@@ -509,7 +509,7 @@ if __name__ == '__main__':
             if directory.exists():
                 result = sort(directory, _dir2ext, ext2dir, result)
                 if args.verbose >= 4:
-                    print(f"Processed dictionary for path - {target_directory}: {result}")
+                    print(f"Processed dictionary for path - '{target_directory}': {result}.")
             else:
                 print(f"Error: Directory - '{directory}' doesn't exists.")
             
