@@ -1,7 +1,6 @@
 # sorter.py
 """
     Sort files by extension. Can unpack supported archives.
-    Cautions: All files with same name will be overwrited by default!
 """
 """ Default file processing settings:
     {
@@ -338,7 +337,7 @@ def sort(current_dir: Path, dir2ext: dict, ext2dir: dict, result: dict) -> dict:
 if __name__ == '__main__':
 
     parser = argparse.ArgumentParser(
-        description="Sort files by extension. Can unpack supported archives. Cautions: All files with same name will be overwrited by default!"
+        description="Sort files by extension. Can unpack supported archives."
     )  # ,exit_on_error=False
     parser.add_argument(
         "directories",
