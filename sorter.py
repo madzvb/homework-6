@@ -1,5 +1,8 @@
 # sorter.py
-"""Sort files by extension. Can unpack supported archives."""
+"""
+    Sort files by extension. Can unpack supported archives.
+    Cautions: All files with same name will be owerwrited!
+"""
 """ Default file processing settings:
     {
         "archives"  :   {
@@ -48,6 +51,7 @@ import shutil
 import argparse
 from pathlib import Path
 from copy import deepcopy
+from xmlrpc.client import boolean
 
 args = None
 
@@ -96,11 +100,15 @@ def make_translate_function():
         return name.translate(translation)
     return translate
 
-def make_destination(normalize, destination_root: str, name: str) -> str:
-    """Create destination path with normalization"""
-    sname = os.path.splitext(os.path.basename(name))
-    file_name = sname[0]
-    ext_name = sname[1]
+def make_destination(normalize, destination_root: str, name: str, split = True) -> str:
+    """Create destination path with normalization, if normalization if ON"""
+    if split:
+        sname = os.path.splitext(os.path.basename(name))
+        file_name = sname[0]
+        ext_name = sname[1]
+    else:
+        file_name = name
+        ext_name = ''
     if normalize:
         destination_name = normalize(file_name)
     else:
@@ -157,8 +165,7 @@ def make_unpack_file_function(destination_root: str):
         if not os.path.exists(name):
             return name
         directory_name = os.path.splitext(os.path.basename(name))[0]
-        destination = make_destination(
-            normalize, destination_root, directory_name)
+        destination = make_destination(normalize, destination_root, directory_name, False)
         if not os.path.exists(destination):
             if args.verbose >= 3:
                 print(f"Create directory - {destination}")
@@ -235,7 +242,7 @@ def sort(current_dir: str, dir2ext: dict, ext2dir: dict, result: dict) -> dict:
             if args.verbose > 0:
                 print(f"Processing directory - {folder}")
             result = sort(folder, dir2ext, ext2dir, result)
-            if not args.keep_empty_dir and os.path.exists(folder):
+            if not args.keep_empty_dir and os.path.exists(folder) and not len(os.listdir(folder)):
                 if args.verbose >= 3:
                     print(f"Remove empty directory - {folder}")
                 try:
@@ -273,7 +280,7 @@ def sort(current_dir: str, dir2ext: dict, ext2dir: dict, result: dict) -> dict:
     # Process files
     for dest, exts in files_result.items():
         for ext, files in exts.items():
-            functions = dir2ext[dest]['functions']
+            functions = dir2ext[dest]['functions'] if dest in  dir2ext else None
             if functions:
                 dir_name = os.path.join(target_directory, dest)
                 if not os.path.exists(dir_name):
@@ -283,6 +290,8 @@ def sort(current_dir: str, dir2ext: dict, ext2dir: dict, result: dict) -> dict:
                 for function in functions:
                     for name in map(function, files):
                         continue
+            else:
+                print(f"Error: skip processing {files}. No functions to apply.")
     return result
 
 if __name__ == '__main__':
@@ -412,6 +421,7 @@ if __name__ == '__main__':
             for folder, extensions in _dir2ext.items():
                 # Fill dir2ext.extensions['functions']
                 if 'functions' in extensions and extensions['functions']:
+                    # Convert string to list of string
                     if isinstance(extensions['functions'], str):
                         function = extensions['functions']
                         extensions['functions'] = []
@@ -420,19 +430,25 @@ if __name__ == '__main__':
                     for function in extensions['functions']:
                         if function:
                             function = function.lower()
-                            function_name = (
-                                'make_' + function + '_file_function')
+                            # Find closure
+                            function_name = ('make_' + function + '_file_function')
                             if function_name in globals():
-                                functions.append(globals()[function_name](
-                                    os.path.join(target_directory, folder)))
-                            function_name = (function + '_file')
-                            if function_name in globals():
-                                functions.append(globals()[function_name])
+                                functions.append(
+                                    globals()[function_name](os.path.join(target_directory, folder))
+                                )
+                            else:
+                                print(f"Error: {function} not found.")
+                                # Find usual
+                                function_name = (function + '_file')
+                                if function_name in globals():
+                                    functions.append(globals()[function_name])
+                                else:
+                                    print(f"Error: {function} not found.")
                     extensions['functions'] = functions
 
             result = {}
             result = sort(target_directory, _dir2ext, ext2dir, result)
             if args.verbose >= 4:
-                print(f"Processed dictionary: {result}")
+                print(f"Processed dictionary for path - {target_directory}: {result}")
         else:
-            print(f"Error: directory {target_directory} does not exist")
+            print(f"Error: directory {target_directory} does not exist.")
