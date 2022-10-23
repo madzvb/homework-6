@@ -40,7 +40,6 @@
             #   order sensitive
 
 TODO: 
-    Refactory to use pathlib module
     add regexp to extensions processing
 """
 
