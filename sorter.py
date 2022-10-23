@@ -1,7 +1,7 @@
 # sorter.py
 """
     Sort files by extension. Can unpack supported archives.
-    Cautions: All files with same name will be owerwrited!
+    Cautions: All files with same name will be overwrited by default!
 """
 """ Default file processing settings:
     {
@@ -51,7 +51,6 @@ import shutil
 import argparse
 from pathlib import Path
 from copy import deepcopy
-from xmlrpc.client import boolean
 
 args = None
 
@@ -100,138 +99,181 @@ def make_translate_function():
         return name.translate(translation)
     return translate
 
-def make_destination(normalize, destination_root: str, name: str, split = True) -> str:
+def make_destination(normalize, destination_root: Path, name: Path, split = True) -> Path:
     """Create destination path with normalization, if normalization if ON"""
+
     if split:
-        sname = os.path.splitext(os.path.basename(name))
-        file_name = sname[0]
-        ext_name = sname[1]
+        file_name = name.stem
+        ext_name = name.suffix
     else:
         file_name = name
         ext_name = ''
+    
     if normalize:
         destination_name = normalize(file_name)
     else:
         destination_name = file_name
+    
     destination_name += ext_name
-    destination = os.path.join(destination_root, destination_name)
+    destination = Path(destination_root) / destination_name
     return destination
 
-def make_copy_file_function(destination_root: str):
+def make_copy_file_function(destination_root: Path) -> Path:
     normalize = None
     if not args.use_original_names:
         normalize = make_translate_function()
 
-    def copy_file(name) -> str:
+    def copy_file(name: Path) -> str:
         """Move file to destination directory"""
-        if not os.path.exists(name):
+
+        if not name.exists():
+            print(f"Error: Skip coping file - '{name}'. File doesn't exists.")
             return name
+        
         destination = make_destination(normalize, destination_root, name)
-        if args.verbose >= 3:
-            print(f"Copy file - {name} to {destination}")
-        try:
-            shutil.copy2(name, destination)
-        except Exception as e:
-            print(f"Error: {e}")
+
+        if args.overwrite or not destination.exists():
+            if args.verbose >= 3:
+                print(f"Copy file - '{name}' to '{destination}'.")
+            try:
+                shutil.copy2(name, destination)
+            except Exception as e:
+                print(f"Error: {e}")
+        else:
+            if args.verbose >= 1:
+                print(f"Warning: Skip coping file - '{name}' to '{destination}'. File already exists.")
+        
         return destination
+    
     return copy_file
 
-def make_move_file_function(destination_root: str):
+def make_move_file_function(destination_root: Path):
     normalize = None
     if not args.use_original_names:
         normalize = make_translate_function()
 
-    def move_file(name) -> str:
+    def move_file(name: Path) -> Path:
         """Move file to destination directory"""
-        if not os.path.exists(name):
+
+        if not name.exists():
+            print(f"Error: Skip moving file - '{name}'. File doesn't exists.")
             return name
+        
         destination = make_destination(normalize, destination_root, name)
-        if args.verbose >= 3:
-            print(f"Move file - {name} to {destination}")
-        try:
-            shutil.move(name, destination)
-        except Exception as e:
-            print(f"Error: {e}")
+
+        if args.overwrite or not destination.exists():
+            if args.verbose >= 3:
+                print(f"Move file - '{name}' to '{destination}'")
+            try:
+                shutil.move(name, destination)
+            except Exception as e:
+                print(f"Error: {e}")
+        else:
+            if args.verbose >= 1:
+                print(f"Warning: Skip moving file - '{name}' to '{destination}'. File already exists.")
+        
         return destination
+    
     return move_file
 
-def make_unpack_file_function(destination_root: str):
+def make_unpack_file_function(destination_root: Path):
     normalize = None
     if not args.use_original_names:
         normalize = make_translate_function()
 
-    def unpack_file(name) -> str:
+    def unpack_file(name: Path) -> Path:
         """Unpack archive to destination directory"""
-        if not os.path.exists(name):
+
+        if not name.exists():
+            print(f"Error: Skip unpacking file - '{name}'. File doesn't exists.")
             return name
-        directory_name = os.path.splitext(os.path.basename(name))[0]
+        
+        directory_name = name.stem
         destination = make_destination(normalize, destination_root, directory_name, False)
-        if not os.path.exists(destination):
+        
+        if not destination.exists():
             if args.verbose >= 3:
-                print(f"Create directory - {destination}")
+                print(f"Create directory - '{destination}'")
             try:
-                os.mkdir(destination)
+                destination.mkdir()
             except Exception as e:
                 print(f"Error: {e}")
-        try:
-            if args.verbose >= 3:
-                print(f"Unpack archive - {name} to directory {destination}")
-            shutil.unpack_archive(name, destination)
-        except shutil.ReadError as e:
-            print(f"Error: {e}")
-            os.rmdir(destination)
-        except Exception as e:
-            print(f"Error: {e}")
+        
+        if args.overwrite or not os.listdir(destination):
+            try:
+                if args.verbose >= 3:
+                    print(f"Unpack archive - '{name}' to '{destination}'")
+                shutil.unpack_archive(name, destination)
+            except shutil.ReadError as e:
+                print(f"Error: {e}")
+                destination.rmdir()
+            except Exception as e:
+                print(f"Error: {e}")
+        else:
+            if args.verbose >= 1:
+                print(f"Warning: Skip unpacking file - '{name}' to '{destination}'. '{destination}' already exists.")
+        
         return destination
+    
     return unpack_file
 
-def make_delete_file_function(destination_root: str):
+def make_delete_file_function(destination_root: Path):
     normalize = None
     if not args.use_original_names:
         normalize = make_translate_function()
 
-    def delete_file(name) -> str:
+    def delete_file(name: Path) -> Path:
         """Remove archive if it was unpacked successfully"""
-        if not os.path.exists(name):
+
+        if not name.exists():
+            print(f"Error: Skip deleting file - '{name}'. File doesn't exists.")
             return name
-        directory_name = os.path.splitext(os.path.basename(name))[0]
-        destination = make_destination(
-            normalize, destination_root, directory_name)
-        if os.path.exists(destination):  # Check if archive was unpacked
+        
+        directory_name = name.stem
+        destination = make_destination(normalize, destination_root, directory_name,False)
+        
+        if destination.exists():  # Check if archive was unpacked
             if args.verbose >= 3:
-                print(f"Remove file - {name}")
+                print(f"Remove file - '{name}'")
             try:
-                os.remove(name)
+                name.unlink(True)
             except Exception as e:
                 print(f"Error: {e}")
+        
         return name
+    
     return delete_file
 
 
-def remove_file(name) -> str:
+def remove_file(name: Path) -> Path:
     """Just remove file"""
-    if os.path.exists(name):
+
+    if name.exists():
         if args.verbose >= 3:
-            print(f"Remove file - {name}")
+            print(f"Remove file - '{name}'")
         try:
-            os.remove(name)
+            name.unlink(True)
         except Exception as e:
             print(f"Error: {e}")
+    else:
+        if args.verbose >= 1:
+            print(f"Warning: Skip removing file - '{name}'. File doesn't exists.")
+    
     return name
 
-def sort(current_dir: str, dir2ext: dict, ext2dir: dict, result: dict) -> dict:
+def sort(current_dir: Path, dir2ext: dict, ext2dir: dict, result: dict) -> dict:
     dirs = []
     files = []
 
     # Filling files and subdirectories lists to process
     for f in os.listdir(current_dir):
-        pathname = os.path.join(current_dir, f)
-        if os.path.isdir(pathname):
-            name = os.path.basename(pathname)
+        pathname = Path(current_dir) / f
+        if pathname.is_dir():
+            name = pathname.name
             if name in dir2ext:  # Exclude destination directories
                 continue
             dirs.append(pathname)
-        elif os.path.isfile(pathname):
+        elif pathname.is_file():
             files.append(pathname)
         else:  # ignore all other filesystem entities
             pass
@@ -242,21 +284,21 @@ def sort(current_dir: str, dir2ext: dict, ext2dir: dict, result: dict) -> dict:
             if args.verbose > 0:
                 print(f"Processing directory - {folder}")
             result = sort(folder, dir2ext, ext2dir, result)
-            if not args.keep_empty_dir and os.path.exists(folder) and not len(os.listdir(folder)):
+            if not args.keep_empty_dir and folder.exists() and not len(os.listdir(folder)):
                 if args.verbose >= 3:
                     print(f"Remove empty directory - {folder}")
                 try:
-                    os.rmdir(folder)
+                    folder.rmdir()
                 except Exception as e:
                     print(f"Error: {e}")
 
-    # Fill result dictionary with files in currrent path
-    files_result = {}  # Files to be processed
+    # Fill result dictionary with files in current path
+    files_result = {}  # Current directory's files to be processed
     for pathname in files:
-        name = os.path.basename(pathname)
+        name = pathname.name
         if name == 'sorter.py':  # Exclude script
             continue
-        ext = os.path.splitext(name)[1].replace('.', '').lower()
+        ext = pathname.suffix.replace('.', '').lower()
         if len(ext2dir) == 1 and '*' in ext2dir:
             target_dir = ext2dir['*']
         elif not ext in ext2dir:  # All unknown extensions put to other
@@ -282,12 +324,12 @@ def sort(current_dir: str, dir2ext: dict, ext2dir: dict, result: dict) -> dict:
         for ext, files in exts.items():
             functions = dir2ext[dest]['functions'] if dest in  dir2ext else None
             if functions:
-                dir_name = os.path.join(target_directory, dest)
-                if not os.path.exists(dir_name):
+                dir_name = Path(target_directory) / dest
+                if not dir_name.exists(): # Create destination directory if no exists
                     if args.verbose >= 2:
                         print(f"Create directory - {dir_name}")
-                    os.mkdir(dir_name)
-                for function in functions:
+                    dir_name.mkdir()
+                for function in functions: # Apply functions to files
                     for name in map(function, files):
                         continue
             else:
@@ -295,34 +337,50 @@ def sort(current_dir: str, dir2ext: dict, ext2dir: dict, result: dict) -> dict:
     return result
 
 if __name__ == '__main__':
+
     parser = argparse.ArgumentParser(
-        description="Sort files by extension. Can unpack supported archives.")  # ,exit_on_error=False
+        description="Sort files by extension. Can unpack supported archives. Cautions: All files with same name will be overwrited by default!"
+    )  # ,exit_on_error=False
     parser.add_argument(
         "directories",
-        help="Directories list to process, if not specified used current directory",
+        help="Directories list to process, if not specified used current directory.",
+        type = Path,
         action="store",
         nargs='*'
-    )  # , type=pathlib.Path)
+    )
     parser.add_argument(
         "-k", "--keep-empty-dir",
-        help="Don't remove empty directories",
+        help="Don't remove empty directories.",
         action="store_true",
         required=False
     )
     parser.add_argument(
         "-u", "--use-original-names",
-        help="Don't normalize file and directory(for unpacking archives) names",
+        help="Don't normalize file and directory(for unpacking archives) names.",
         action="store_true",
         default=False,
         required=False
     )
-    parser.add_argument("-v", "--verbose", help="increase output verbosity",
-                        action="count", default=0, required=False)
+    parser.add_argument(
+        "-o", "--overwrite",
+        help="Overwrite existing files and directories.",
+        action="store_true",
+        default=False,
+        required=False
+    )
+    parser.add_argument(
+        "-v", "--verbose",
+        help="increase output verbosity.",
+        action="count",
+        default=0,
+        required=False
+    )
 
     group = parser.add_mutually_exclusive_group()
     group.add_argument(
         "-s", "--settings",
         help="Specify path to settings(JSON) file",
+        type = Path,
         metavar="settings.json",
         default="settings.json",
         required=False
@@ -330,9 +388,10 @@ if __name__ == '__main__':
     group.add_argument(
         "-d", "--destination",
         help="Destination directory",
+        type = Path,
         metavar="destination",
         action="store",
-        default="",
+        default=None,
         required=False
     )
     parser.add_argument(
@@ -358,15 +417,15 @@ if __name__ == '__main__':
 
     if not len(args.directories):
         # If no directories specified, use current
-        path = os.path.split(sys.argv[0])
-        args.directories.append(path[0])
+        path = Path(sys.argv[0]).name
+        args.directories.append(path)
 
     dir2ext = {}
     if args.destination:  # and args.extensions and args.functions:
         dir2ext[args.destination] = {}
         dir2ext[args.destination]['extensions'] = args.extensions
         dir2ext[args.destination]['functions'] = args.functions
-    elif os.path.exists(args.settings):
+    elif args.settings.exists():
         # Load settings from file
         with open(args.settings, 'r') as settings:
             dir2ext = json.load(settings)
@@ -416,7 +475,7 @@ if __name__ == '__main__':
 
     # Replace function name with real functions
     for target_directory in args.directories:
-        if os.path.exists(args.settings):
+        if dir2ext: # Check for settings
             _dir2ext = deepcopy(dir2ext)
             for folder, extensions in _dir2ext.items():
                 # Fill dir2ext.extensions['functions']
@@ -434,10 +493,10 @@ if __name__ == '__main__':
                             function_name = ('make_' + function + '_file_function')
                             if function_name in globals():
                                 functions.append(
-                                    globals()[function_name](os.path.join(target_directory, folder))
+                                    globals()[function_name](Path(target_directory) / folder)
                                 )
                             else:
-                                print(f"Error: {function} not found.")
+                                # print(f"Error: {function} not found.")
                                 # Find usual
                                 function_name = (function + '_file')
                                 if function_name in globals():
@@ -447,8 +506,13 @@ if __name__ == '__main__':
                     extensions['functions'] = functions
 
             result = {}
-            result = sort(target_directory, _dir2ext, ext2dir, result)
-            if args.verbose >= 4:
-                print(f"Processed dictionary for path - {target_directory}: {result}")
+            directory = Path(target_directory)
+            if directory.exists():
+                result = sort(directory, _dir2ext, ext2dir, result)
+                if args.verbose >= 4:
+                    print(f"Processed dictionary for path - {target_directory}: {result}")
+            else:
+                print(f"Error: Directory - '{directory}' doesn't exists.")
+            
         else:
-            print(f"Error: directory {target_directory} does not exist.")
+            print(f"Error: no processing settings specified.")
