@@ -337,7 +337,11 @@ def sort(current_dir: Path, dir2ext: dict, ext2dir: dict, result: dict) -> dict:
 if __name__ == '__main__':
 
     parser = argparse.ArgumentParser(
-        description="Sort files by extension. Can unpack supported archives."
+        description="Sort files by extension. Can unpack supported archives.",
+        formatter_class=argparse.RawTextHelpFormatter,
+        epilog = "Usage examples:\n\
+            sorter.py -v -o /usr/home/root/downloads /usr/home/root/must_be_sorted -s settings.json\n\
+        or  sorter.py -v -o /usr/home/root/downloads /usr/home/root/must_be_sorted -d images -e jpg bmp jpeg -f move"
     )  # ,exit_on_error=False
     parser.add_argument(
         "directories",
@@ -368,7 +372,12 @@ if __name__ == '__main__':
     )
     parser.add_argument(
         "-v", "--verbose",
-        help="increase output verbosity.",
+        help = ("increase output verbosity.\n\
+    0 - Only errors printout\n\
+    1 - Add warnings\n\
+    2 - Add destination directory creation\n\
+    3 - Add all filesystem modification\n\
+    4 - Add internal script structures"),
         action="count",
         default=0,
         required=False
@@ -377,7 +386,7 @@ if __name__ == '__main__':
     group = parser.add_mutually_exclusive_group()
     group.add_argument(
         "-s", "--settings",
-        help="Specify path to settings(JSON) file.",
+        help="Specify path to settings(JSON) file. Ex: settings.json",
         type = Path,
         metavar="settings.json",
         default="settings.json",
@@ -394,7 +403,7 @@ if __name__ == '__main__':
     )
     parser.add_argument(
         "-e", "--extensions",
-        help="File's extensions.",
+        help="File's extensions. Ex: 'jpg jpeg png bmp'",
         metavar="extensions",
         action="store",
         default="*",
@@ -403,7 +412,11 @@ if __name__ == '__main__':
     )
     parser.add_argument(
         "-f", "--functions",
-        help="Function's list(order sensitive).",
+        help = "Functions' list(order sensitive).\n\
+    A list of next functions:\n\
+    copy, move, unpack, delete(check if archive already unpacked), remove.\n\
+    Ex: 'unpack move' - will unpack archive file to destination directory\n\
+    and move it to same path.",
         metavar="functions",
         action="store",
         default="move",
