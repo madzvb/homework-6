@@ -1,31 +1,31 @@
 {
     "archives"  :   {
-        "extentions"    :   ["zip", "tar", "tgz", "gz", "7zip", "7z", "iso", "rar"],
+        "extensions"    :   ["zip", "tar", "tgz", "gz", "7zip", "7z", "iso", "rar"],
         "functions"     :   ["unpack","move"]
     },
 
     "video"     :   {
-        "extentions"    :   ["avi", "mp4", "mov", "mkv"],
+        "extensions"    :   ["avi", "mp4", "mov", "mkv"],
         "functions"     :   ["move"]
     },
     "audio"     :   {
-        "extentions"    :   ["wav", "mp3", "ogg", "amr"],
+        "extensions"    :   ["wav", "mp3", "ogg", "amr"],
         "functions"     :   ["move"]
     },
     "documents" :   {
-        "extentions"    :   ["doc", "docx", "txt", "pdf", "xls", "xlsx", "ppt", "pptx", "rtf", "xml", "ini"],
+        "extensions"    :   ["doc", "docx", "txt", "pdf", "xls", "xlsx", "ppt", "pptx", "rtf", "xml", "ini"],
         "functions"     :   ["move"]
     },
     "images"    :   {
-        "extentions"    :   ["jpeg", "png", "jpg", "svg"],
+        "extensions"    :   ["jpeg", "png", "jpg", "svg"],
         "functions"     :   ["move"]
     },
     "software"    :   {
-        "extentions"    :   ["exe", "msi", "bat" , "dll"],
+        "extensions"    :   ["exe", "msi", "bat" , "dll"],
         "functions"     :   ["move"]
     },
     "other"     :   {
-        "extentions"    :   [],
+        "extensions"    :   [],
         "functions"     :   ["move"]
     }
 }
