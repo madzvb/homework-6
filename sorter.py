@@ -8,7 +8,6 @@
             "extensions"    :   ["zip", "tar", "tgz", "gz", "7zip", "7z", "iso", "rar"],
             "functions"     :   ["unpack","move"]
         },
-
         "video"     :   {
             "extensions"    :   ["avi", "mp4", "mov", "mkv"],
             "functions"     :   ["move"]
@@ -334,8 +333,9 @@ def sort(current_dir: Path, dir2ext: dict, ext2dir: dict, result: dict) -> dict:
                 print(f"Error: skip processing '{files}'. No functions to apply.")
     return result
 
-if __name__ == '__main__':
-
+def parse_argmunets():
+    """Parse comand-line options"""
+    
     parser = argparse.ArgumentParser(
         description="Sort files by extension. Can unpack supported archives.",
         formatter_class=argparse.RawTextHelpFormatter,
@@ -423,8 +423,11 @@ if __name__ == '__main__':
         required=False,
         nargs='*'
     )
+    return parser.parse_args()
 
-    args = parser.parse_args()
+def main():
+
+    args = parse_argmunets()
 
     if not len(args.directories):
         # If no directories specified, use current
@@ -527,3 +530,6 @@ if __name__ == '__main__':
             
         else:
             print(f"Error: no processing settings specified.")
+
+if __name__ == '__main__':
+    main()
