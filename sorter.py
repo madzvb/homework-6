@@ -258,7 +258,7 @@ def remove_file(name: Path) -> Path:
     
     return name
 
-def sort(current_dir: Path, dir2ext: dict, ext2dir: dict, result: dict) -> dict:
+def sort(root_dir: Path,current_dir: Path, dir2ext: dict, ext2dir: dict, result: dict) -> dict:
     dirs = []
     files = []
 
@@ -277,15 +277,15 @@ def sort(current_dir: Path, dir2ext: dict, ext2dir: dict, result: dict) -> dict:
 
     # Process subdirectories
     if dirs:
-        for folder in dirs:
+        for sub_dir in dirs:
             if args.verbose > 0:
-                print(f"Processing directory - '{folder}'.")
-            result = sort(folder, dir2ext, ext2dir, result)
-            if not args.keep_empty_dir and folder.exists() and not len(os.listdir(folder)):
+                print(f"Processing directory - '{sub_dir}'.")
+            result = sort(root_dir,sub_dir, dir2ext, ext2dir, result)
+            if not args.keep_empty_dir and sub_dir.exists() and not len(os.listdir(sub_dir)):
                 if args.verbose >= 3:
-                    print(f"Remove empty directory - '{folder}'.")
+                    print(f"Remove empty directory - '{sub_dir}'.")
                 try:
-                    folder.rmdir()
+                    sub_dir.rmdir()
                 except Exception as e:
                     print(f"Error: {e}")
 
@@ -321,11 +321,11 @@ def sort(current_dir: Path, dir2ext: dict, ext2dir: dict, result: dict) -> dict:
         for ext, files in exts.items():
             functions = dir2ext[dest]['functions'] if dest in  dir2ext else None
             if functions:
-                dir_name = Path(target_directory) / dest
-                if not dir_name.exists(): # Create destination directory if no exists
+                dest_dir = Path(root_dir) / dest
+                if not dest_dir.exists(): # Create destination directory if no exists
                     if args.verbose >= 2:
-                        print(f"Create directory - '{dir_name}'.")
-                    dir_name.mkdir()
+                        print(f"Create directory - '{dest_dir}'.")
+                    dest_dir.mkdir()
                 for function in functions: # Apply functions to files
                     for name in map(function, files):
                         continue
@@ -335,7 +335,7 @@ def sort(current_dir: Path, dir2ext: dict, ext2dir: dict, result: dict) -> dict:
 
 def parse_argmunets():
     """Parse comand-line options"""
-    
+
     parser = argparse.ArgumentParser(
         description="Sort files by extension. Can unpack supported archives.",
         formatter_class=argparse.RawTextHelpFormatter,
@@ -425,15 +425,7 @@ def parse_argmunets():
     )
     return parser.parse_args()
 
-def main():
-
-    args = parse_argmunets()
-
-    if not len(args.directories):
-        # If no directories specified, use current
-        path = Path(sys.argv[0]).name
-        args.directories.append(path)
-
+def prepeare_dir2ext() -> dict:
     dir2ext = {}
     if args.destination:  # and args.extensions and args.functions:
         dir2ext[args.destination] = {}
@@ -479,19 +471,32 @@ def main():
                 'functions'     :   ['move']
             }
         }
+    return dir2ext
+
+def main():
+
+    global args
+    args = parse_argmunets()
+
+    if not len(args.directories):
+        # If no directories specified, use current
+        path = Path(sys.argv[0]).name
+        args.directories.append(path)
+
+    dir2ext = prepeare_dir2ext()
 
     # Generate mapping - extension to directory,
     # used to resolve desctination directory by file extension
     ext2dir = {}
-    for folder, extensions in dir2ext.items():
+    for dest_dir, extensions in dir2ext.items():
         for ext in extensions['extensions']:
-            ext2dir[ext] = folder
+            ext2dir[ext] = dest_dir
 
     # Replace function name with real functions
     for target_directory in args.directories:
         if dir2ext: # Check for settings
             _dir2ext = deepcopy(dir2ext)
-            for folder, extensions in _dir2ext.items():
+            for dest_dir, extensions in _dir2ext.items():
                 # Fill dir2ext.extensions['functions']
                 if 'functions' in extensions and extensions['functions']:
                     # Convert string to list of string
@@ -507,10 +512,9 @@ def main():
                             function_name = ('make_' + function + '_file_function')
                             if function_name in globals():
                                 functions.append(
-                                    globals()[function_name](Path(target_directory) / folder)
+                                    globals()[function_name](Path(target_directory) / dest_dir)
                                 )
                             else:
-                                # print(f"Error: {function} not found.")
                                 # Find usual
                                 function_name = (function + '_file')
                                 if function_name in globals():
@@ -520,13 +524,12 @@ def main():
                     extensions['functions'] = functions
 
             result = {}
-            directory = Path(target_directory)
-            if directory.exists():
-                result = sort(directory, _dir2ext, ext2dir, result)
+            if target_directory.exists():
+                result = sort(target_directory,target_directory, _dir2ext, ext2dir, result)
                 if args.verbose >= 4:
                     print(f"Processed dictionary for path - '{target_directory}': {result}.")
             else:
-                print(f"Error: Directory - '{directory}' doesn't exists.")
+                print(f"Error: Directory - '{target_directory}' doesn't exists.")
             
         else:
             print(f"Error: no processing settings specified.")
